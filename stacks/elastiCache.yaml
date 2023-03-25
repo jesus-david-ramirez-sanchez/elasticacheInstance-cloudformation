@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type: String
+  EnvType:
+    Type: String
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  PreferredMaintenanceWindow:
+    Description: Enter Preferred Maintenance Window Time (UTC).
+    Type: String
+    Default: Mond:01:00-Mond:03:00
+  EngineEC:
+    Type: String
+    Default: redis
+    Description: Escoja entre redis o memcached
+  CacheNodeType:
+    Type: String
+    Default: cache.t2.micro
+    Description: Escoja el tipo de maquina
+  CacheNodes:
+    Description: Numero nodos del cluster
+    Type: Number
+    Default: 1
+  CachePort:
+    Description: Puerto que va a tener el cluster
+    Type: Number
+    Default: 6379
+Resources:
+
+  ###################### Elasticache from redis cache ######################
+  ElastiCacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Elasticache Security Group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          Description: Acceso al Security group del cluster spot
+          CidrIp: 0.0.0.0/0
+          FromPort: !Ref CachePort
+          ToPort: !Ref CachePort
+      VpcId: !Ref VpcId
+
+
+  SGBaseIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref ElastiCacheSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref CachePort
+      ToPort: !Ref CachePort
+      SourceSecurityGroupId: !GetAtt ElastiCacheSecurityGroup.GroupId
+
+  ElastiCacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      CacheSubnetGroupName: !Join ['-', [!Ref ProjectName, !Ref EnvType, elasticache, sg]]
+      Description: Cache subnet
+      SubnetIds: !Ref SubnetIds
+
+  ElastiCacheCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      ClusterName: !Join ['-', [!Ref ProjectName, !Ref EnvType, elasticache]]
+      Engine: !Ref EngineEC
+      CacheNodeType: !Ref CacheNodeType
+      NumCacheNodes: !Ref CacheNodes
+      CacheSubnetGroupName: !Ref ElastiCacheSubnetGroup
+      AutoMinorVersionUpgrade: true
+      VpcSecurityGroupIds: 
+        - !GetAtt ElastiCacheSecurityGroup.GroupId

@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  ProjectName:
+    Type: String
+  EnvType:
+    Type: String
+    AllowedValues:
+      - prod
+      - dev
+
+Conditions:
+  CreateDevResources: !Equals 
+    - !Ref EnvType
+    - dev
+
+Resources:
+    
+  ElastiCache:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+        EnvType: !Ref EnvType
+        SubnetIds: !GetAtt vpc.Outputs.SubnetIds
+        VpcId: !GetAtt vpc.Outputs.VpcId
+      TemplateURL: stacks/elastiCache.yaml
+
+  vpc:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateDevResources
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+      TemplateURL: stacks/vpc.yaml
+
+
+Outputs:
+  VpcIdElasticache:
+    Value: !GetAtt vpc.Outputs.VpcId
+  SubnetIdsElasticache:
+    Value: !GetAtt vpc.Outputs.SubnetIds
